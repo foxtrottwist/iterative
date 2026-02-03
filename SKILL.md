@@ -192,7 +192,10 @@ Each task/phase runs as its own loop of fresh-context iterations, then passes th
 └─────────────────────────────────────────────────┘
 ```
 
-See [references/verification.md](references/verification.md) for the complete verification hierarchy.
+See [references/verification.md](references/verification.md) for the complete verification hierarchy, including:
+- **Checkpoint types**: Categorize pauses as human-verify, decision, or human-action
+- **Stub detection**: Four-level verification (Exists → Substantive → Wired → Functional)
+- **Saturation detection**: Catch thrashing iterations with >80% similarity
 
 ### Dispatch Fresh Sub-Agent (Each Iteration)
 
@@ -325,7 +328,9 @@ All state lives in `.claude/iterative/{task-slug}/`:
 └── archive/            # Completed work
 ```
 
-See [references/state.md](references/state.md) for full schemas.
+See [references/state.md](references/state.md) for full schemas, including:
+- **Performance metrics**: Track iteration velocity and trend (improving/stable/degrading)
+- **Delta tracking**: Progress.md field for saturation detection
 
 ## Guardrails
 

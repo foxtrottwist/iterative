@@ -133,6 +133,36 @@ Only after work consensus do we move to explicit quality review (verification ag
 
 **Output:** `VERIFIED` or `GAPS_FOUND` with specific issues.
 
+### Stub Detection
+
+Verification must check work is **substantive**, not placeholder. Four verification levels:
+
+| Level | Check | Catches |
+|-------|-------|---------|
+| Exists | File present at expected path | Missing files |
+| Substantive | Real implementation, not placeholder | Stubs, TODOs |
+| Wired | Connected to rest of system | Orphaned code |
+| Functional | Actually works when invoked | Integration bugs |
+
+**Universal stub patterns (grep for these):**
+- Comment stubs: `TODO`, `FIXME`, `PLACEHOLDER`, `implement later`
+- Empty returns: `return null`, `return {}`, `return []`
+- Log-only functions: `console.log(...); return`
+- Placeholder text: `lorem ipsum`, `coming soon`, `example data`
+
+**Development mode - check for:**
+- Handlers that only `console.log()` or `preventDefault()`
+- Components returning `<div>Placeholder</div>` or `null`
+- API routes returning `{ message: "Not implemented" }`
+- Queries without awaited results
+- State declared but never rendered
+
+**Wiring verification (where 80% of stubs hide):**
+- Does component actually call API and use response?
+- Does API route actually query database and return result?
+- Does form handler actually submit data?
+- Is state actually rendered, not hardcoded?
+
 ---
 
 ### Layer 5: Task Review
@@ -231,6 +261,42 @@ Very few layers are skippable.
 | Task Review | No | Catches cross-unit issues |
 | Human Review | No | Final authority |
 
+## Saturation Detection
+
+**Problem:** Agent iterates without meaningful progress (thrashing).
+
+**Detection heuristics:**
+After each iteration, compare to previous:
+1. Parse `**Did:**` section from current and prior iteration
+2. Calculate semantic similarity (shared keywords, operations)
+3. If >80% similar for 2+ consecutive iterations → saturation
+
+**Saturation response:**
+```
+Saturation detected: Last {N} iterations show <20% change.
+
+Recent activity:
+- Iteration {N-2}: {did summary}
+- Iteration {N-1}: {did summary}
+- Iteration {N}: {did summary}
+
+Options:
+1. Continue with fresh approach hint
+2. Escalate to user for guidance
+3. Skip to next unit
+```
+
+**Progress.md enhancement:**
+Add `**Delta:**` field tracking what changed from prior iteration:
+
+```markdown
+## T1 - Iteration 3 - 2026-01-15T10:30:00Z
+**Did:** Fixed auth middleware error handling
+**Delta:** Changed 2 files, added error wrapper (vs prior: same 2 files, different error paths)
+**Remaining:** None
+**Signal:** T1_DONE
+```
+
 ## Gap Severity Guide
 
 | Severity | Definition | Action |
@@ -262,3 +328,53 @@ Prevent infinite verify-fix loops:
 - **Verification** = "Review this work" (agent explicitly critiques completed work)
 
 Both are necessary. Confirmation catches work that isn't done. Verification catches work that's done but flawed.
+
+## Checkpoint Types
+
+When human interaction is needed, categorize by type to minimize unnecessary pauses:
+
+| Type | Frequency | Use |
+|------|-----------|-----|
+| human-verify | ~90% | Claude automated, human confirms result |
+| decision | ~9% | User chooses between approaches |
+| human-action | ~1% | Truly unavoidable manual step |
+
+**Principle:** If Claude can run it, Claude runs it. Always automate first. Set up verification environment (start servers, create test data) before presenting checkpoint.
+
+### human-verify checkpoint
+
+Most common. Claude completes the work, human confirms visual/functional correctness.
+
+```
+**Completed:** {what Claude built/automated}
+**To verify:**
+1. {specific step with URL/command}
+2. {expected outcome}
+
+Reply "approved" or describe issues.
+```
+
+### decision checkpoint
+
+User makes architectural or design choices. Present options with context.
+
+```
+**Decision needed:** {what's being decided}
+**Context:** {why this matters}
+
+Options:
+A. {option} - {pros} / {cons}
+B. {option} - {pros} / {cons}
+
+Reply with your choice.
+```
+
+### human-action checkpoint
+
+Rare. Only for actions Claude cannot perform (external account auth, physical access, etc.).
+
+```
+**Manual step needed:** {what action}
+**Why Claude can't:** {explanation of limitation}
+**After completing:** {how to signal ready to continue}
+```

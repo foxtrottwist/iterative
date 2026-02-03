@@ -107,6 +107,37 @@ File schemas for iterative state persistence. Enables resumption after any inter
 }
 ```
 
+## Performance Metrics
+
+Track iteration velocity and detect degradation trends.
+
+```json
+{
+  "metrics": {
+    "started": "2026-01-15T10:00:00Z",
+    "total_iterations": 12,
+    "per_unit": {
+      "T1": { "iterations": 5, "duration_ms": 180000 },
+      "T2": { "iterations": 3, "duration_ms": 90000 },
+      "T3": { "iterations": 4, "duration_ms": 120000 }
+    },
+    "avg_iteration_ms": 32500,
+    "trend": "stable"
+  }
+}
+```
+
+**Trend calculation:**
+- Compare last 5 iterations to prior 5
+- `improving`: >20% faster
+- `degrading`: >20% slower
+- `stable`: within ±20%
+
+**Logged after each iteration:**
+- Iteration start/end timestamps
+- Rolling average update
+- Trend recalculation
+
 ## Status Values
 
 | Status | Description |
@@ -219,12 +250,14 @@ R1 → R2 → R3 → R4 (sequential)
 
 ## T1 - Iteration 1 - {timestamp}
 **Did:** {what accomplished}
+**Delta:** {what changed vs prior iteration, or "Initial" for first}
 **Remaining:** {what's left}
 **Blockers:** {issues or "None"}
 **Commit:** {hash}
 
 ## T1 - Iteration 2 - {timestamp}
 **Did:** {what accomplished}
+**Delta:** {files changed, operations performed vs prior}
 **Remaining:** None
 **Signal:** T1_DONE
 **Commit:** {hash}
@@ -236,6 +269,7 @@ R1 → R2 → R3 → R4 (sequential)
 **Rules:**
 - Each iteration appends; never modify previous entries
 - Include timestamp for resumption tracking
+- "Delta" enables saturation detection (>80% similar for 2+ iterations = thrashing)
 - "Remaining" guides next iteration
 - "Signal" marks completion
 
