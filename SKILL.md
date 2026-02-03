@@ -137,6 +137,17 @@ See [references/knowledge.md](references/knowledge.md) for domain templates.
 - Update `state.json`
 - Present plan for user approval
 
+**After plan approval**, use AskUserQuestion:
+
+```yaml
+question: "Clear context before starting execution?"
+options:
+  - "Yes - start fresh (recommended for complex tasks)"
+  - "No - continue in current session"
+```
+
+Clearing context ensures the orchestrator starts execution without accumulated conversation history. The plan and state files provide all necessary context for the execution phase.
+
 ## Phase 3: Execute (Iteration Loop)
 
 Each task/phase runs as its own loop of fresh-context iterations, then passes through verification gates.
