@@ -39,9 +39,9 @@ options:
 ## Workflow
 
 ```
-RESUME?  →  DISCOVER  →  PLAN  →  EXECUTE  →  VERIFY  →  DELIVER
-(check      (clarify     (tasks/   (iterate)   (review)  (package)
- state)      scope)       phases)
+RESUME?  →  PLAN MODE  →  CONTEXT CLEAR  →  EXECUTE  →  VERIFY  →  DELIVER
+(check      (discover,    (built-in)       (iterate)   (review)  (package)
+ state)      plan)
 ```
 
 ## Phase 0: Resume Check
@@ -62,25 +62,22 @@ Found "{task}" at {phase}:
 Resume, start fresh, or check status?
 ```
 
-**If no state**, proceed to Discover.
+**If no state**, use `EnterPlanMode` to begin discovery and planning.
 
-## Phase 1: Discover
+## Phases 1-2: Plan Mode (Discover + Plan)
 
-Use the **AskUserQuestion tool** to gather requirements. This built-in tool presents clickable options.
+After entering plan mode, Claude has read-only access for exploration. This phase combines discovery and planning.
 
-**Core questions** (both modes):
+### Discovery
+
+Use **AskUserQuestion** to gather requirements:
 1. What outcome do you need?
 2. What does "done" look like?
 3. Any constraints?
 
-See [references/interview.md](references/interview.md) for mode-specific question templates.
+See [references/interview.md](references/interview.md) for mode-specific templates.
 
-**Output:**
-- Create `.claude/iterative/{task-slug}/`
-- Write `brief.md` with requirements
-- Write `state.json`: `{ "phase": "plan", "mode": "{dev|knowledge}" }`
-
-## Phase 2: Plan
+### Planning
 
 Decompose into atomic units based on detected mode.
 
@@ -130,25 +127,50 @@ Decompose into **phases** using domain templates:
 
 See [references/knowledge.md](references/knowledge.md) for domain templates.
 
-**Output (both modes):**
-- Write `tasks.md` or `plan.md`
-- Write `context.md` (brief summary for sub-agents)
-- Create empty `guardrails.md` and `progress.md`
-- Update `state.json`
-- Present plan for user approval
+### Plan File Output
 
-**After plan approval**, use AskUserQuestion:
+Write to the designated plan file (specified by plan mode system). Include a **continuation header** so the fresh context knows how to proceed:
 
-```yaml
-question: "Clear context before starting execution?"
-options:
-  - "Yes - start fresh (recommended for complex tasks)"
-  - "No - continue in current session"
+```markdown
+# Iterative: {task-name}
+
+## Continue
+Phase: execute
+State: .claude/iterative/{slug}/
+Mode: {development|knowledge}
+Current: {first-task-id}
+
+After context clear, you are the EXECUTE orchestrator.
+Read state files, dispatch subagents for each task.
+
+---
+
+## Brief
+{requirements from discovery}
+
+## Tasks
+- [ ] **T1**: {title}
+  - Files: `{paths}`
+  - Criteria: {acceptance}
+  - Max iterations: {N}
+  - Model: {haiku|sonnet|opus}
+
+- [ ] **T2**: ...
 ```
 
-Clearing context ensures the orchestrator starts execution without accumulated conversation history. The plan and state files provide all necessary context for the execution phase.
+Use `ExitPlanMode` to present plan for approval. Claude Code's built-in prompt will offer to clear context before execution.
+
+### After Context Clear
+
+The fresh context reads the plan file and:
+1. Creates `.claude/iterative/{slug}/` directory
+2. Hydrates state files (`brief.md`, `tasks.md`, `state.json`, etc.)
+3. Becomes the orchestrator for the execute phase
+4. Dispatches subagents with clean context
 
 ## Phase 3: Execute (Iteration Loop)
+
+**The orchestrator starts with fresh context.** It reads the plan file, hydrates state files, then dispatches subagents. No accumulated discovery/planning baggage—just clean orchestration.
 
 Each task/phase runs as its own loop of fresh-context iterations, then passes through verification gates.
 
@@ -322,10 +344,16 @@ Guardrails accumulate across iterations and tasks. Every fresh agent benefits fr
 
 **After interruption** (network, timeout, new session):
 
-1. Skill detects existing state
-2. Reads `state.json` for phase, current unit, iteration
-3. Reads `progress.md` for what happened
-4. Resumes at exact iteration point
+1. Check for existing state in `.claude/iterative/`
+2. Read `state.json` for phase, current unit, iteration
+3. Read `progress.md` for what happened
+4. Resume at exact iteration point
+
+**After context clear** (new chat continuing from plan):
+
+1. Read plan file (contains continuation header)
+2. Hydrate state files from plan content
+3. Begin orchestration from specified phase/task
 
 ```
 Found "{task}" in execute phase:
