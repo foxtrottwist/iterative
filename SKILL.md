@@ -1,6 +1,28 @@
 ---
 name: iter
 description: Task orchestration using stateless iteration loops. Auto-detects mode from context - development (code implementation with build/test gates) or knowledge work (research, writing, analysis, planning). Decomposes work into atomic units, runs fresh-context iterations until completion. Use when user needs to implement features, fix bugs, write documents, conduct research, analyze data, or plan projects. Triggers - /iter, "help me build", "implement", "research", "write a document", "analyze".
+hooks:
+  Stop:
+    - hooks:
+        - type: command
+          command: "./scripts/verify-completion.sh"
+  UserPromptSubmit:
+    - hooks:
+        - type: prompt
+          prompt: |
+            ITERATIVE WORKFLOW CHECK: Before proceeding, verify workflow state.
+
+            Run: ls .claude/iterative/ 2>/dev/null
+
+            If active state exists (state.json with phase != "complete"):
+            - You are the ORCHESTRATOR, not the worker
+            - Dispatch sub-agents via Task tool to do work
+            - Update progress.md after each iteration
+            - Do NOT edit files directly yourself
+
+            If no state exists:
+            - Use EnterPlanMode to discover requirements and plan tasks
+            - Create state files BEFORE any implementation work
 ---
 
 # Iterative
