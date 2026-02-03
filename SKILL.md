@@ -7,6 +7,25 @@ description: Task orchestration using stateless iteration loops. Auto-detects mo
 
 Task orchestration using fresh-context iteration loops. Work decomposes into atomic units. Each unit runs as multiple stateless passes—context resets every iteration, state persists in files.
 
+## MANDATORY: Follow This Workflow
+
+**DO NOT skip to default Claude Code behavior.** When `/iter` is invoked or iterative work is triggered:
+
+1. **ALWAYS check for existing state first** (`ls .claude/iterative/`)
+2. **ALWAYS create state files before doing any work** - brief.md, tasks.md, state.json, progress.md, guardrails.md, context.md
+3. **ALWAYS use EnterPlanMode for new work** - discover requirements, plan tasks, get approval
+4. **ALWAYS dispatch work through sub-agents** - do not do the work directly in the orchestrator context
+5. **ALWAYS update progress.md after each iteration** - this is the memory that bridges context windows
+
+**What NOT to do:**
+- ❌ Skip straight to editing files without state setup
+- ❌ Use built-in TaskCreate/TaskList instead of iterative state files
+- ❌ Do the work yourself instead of dispatching sub-agents
+- ❌ Forget to update progress.md (next iteration will have no memory)
+- ❌ Treat this like a checklist - it's an execution framework
+
+**The state files ARE the work product** until execution is complete. If `.claude/iterative/{slug}/` doesn't exist, you haven't started yet.
+
 ## Core Pattern
 
 ```
@@ -44,15 +63,15 @@ RESUME?  →  PLAN MODE  →  CONTEXT CLEAR  →  EXECUTE  →  VERIFY  →  DEL
  state)      plan)
 ```
 
-## Phase 0: Resume Check
+## Phase 0: Resume Check (REQUIRED FIRST STEP)
 
-**Every invocation**, check for existing work:
+**MUST run before anything else.** Check for existing work:
 
 ```bash
 ls .claude/iterative/ 2>/dev/null
 ```
 
-**If state exists**, read `state.json` and present:
+**If state exists**, read `state.json` and present to user:
 ```
 Found "{task}" at {phase}:
 - Completed: {list}
@@ -62,7 +81,7 @@ Found "{task}" at {phase}:
 Resume, start fresh, or check status?
 ```
 
-**If no state**, use `EnterPlanMode` to begin discovery and planning.
+**If no state**, you MUST use `EnterPlanMode` to begin discovery and planning. Do NOT proceed to implementation without going through plan mode first.
 
 ## Phases 1-2: Plan Mode (Discover + Plan)
 
@@ -162,15 +181,26 @@ Use `ExitPlanMode` to present plan for approval. Claude Code's built-in prompt w
 
 ### After Context Clear
 
-The fresh context reads the plan file and:
-1. Creates `.claude/iterative/{slug}/` directory
-2. Hydrates state files (`brief.md`, `tasks.md`, `state.json`, etc.)
-3. Becomes the orchestrator for the execute phase
-4. Dispatches subagents with clean context
+The fresh context reads the plan file and MUST:
+1. **Create** `.claude/iterative/{slug}/` directory
+2. **Write** all state files (`brief.md`, `tasks.md`, `state.json`, `progress.md`, `guardrails.md`, `context.md`)
+3. **Verify** state files exist before proceeding
+4. Become the orchestrator for the execute phase
+5. Dispatch subagents with clean context
+
+**STOP if state files don't exist.** The iteration loop cannot function without persistent state.
 
 ## Phase 3: Execute (Iteration Loop)
 
+**IMPORTANT:** The orchestrator MUST NOT do the work itself. It dispatches sub-agents.
+
 **The orchestrator starts with fresh context.** It reads the plan file, hydrates state files, then dispatches subagents. No accumulated discovery/planning baggage—just clean orchestration.
+
+**Before each iteration:**
+1. Verify `.claude/iterative/{slug}/` exists with all required files
+2. Read `state.json` to get current task/phase and iteration count
+3. Read `progress.md` to understand what's been done
+4. Dispatch a fresh sub-agent with the iteration prompt (do NOT do the work yourself)
 
 Each task/phase runs as its own loop of fresh-context iterations, then passes through verification gates.
 
