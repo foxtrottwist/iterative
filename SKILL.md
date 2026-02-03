@@ -1,5 +1,5 @@
 ---
-name: iterative
+name: iter
 description: Task orchestration using stateless iteration loops. Auto-detects mode from context - development (code implementation with build/test gates) or knowledge work (research, writing, analysis, planning). Decomposes work into atomic units, runs fresh-context iterations until completion. Use when user needs to implement features, fix bugs, write documents, conduct research, analyze data, or plan projects. Triggers - /iter, "help me build", "implement", "research", "write a document", "analyze".
 ---
 
