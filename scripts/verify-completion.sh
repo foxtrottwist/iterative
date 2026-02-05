@@ -1,36 +1,13 @@
 #!/bin/bash
-# Verify iterative workflow is complete before allowing stop
+# Verify iterative workflow considerations before stopping
 # Used by Stop hook
+#
+# With native Task system handling state, this hook provides
+# a lightweight reminder to check for incomplete work.
 
-ITERATIVE_DIR=".claude/iterative"
-
-# Check for active work
-if [ -d "$ITERATIVE_DIR" ]; then
-  for dir in "$ITERATIVE_DIR"/*/; do
-    [ -d "$dir" ] || continue
-    [[ "$dir" == *"/archive/"* ]] && continue
-
-    STATE_FILE="${dir}state.json"
-    if [ -f "$STATE_FILE" ]; then
-      PHASE=$(grep -o '"phase"[[:space:]]*:[[:space:]]*"[^"]*"' "$STATE_FILE" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-      TASK=$(grep -o '"task"[[:space:]]*:[[:space:]]*"[^"]*"' "$STATE_FILE" | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-
-      if [ -n "$PHASE" ] && [ "$PHASE" != "complete" ]; then
-        cat <<EOF
-WARNING: Iterative workflow "$TASK" is still active (phase: $PHASE)
-
-Before stopping, ensure:
-- All tasks/phases have DONE signals in progress.md
-- Verification has passed
-- state.json phase is "complete"
-
-State directory: $dir
-EOF
-        exit 0
-      fi
-    fi
-  done
+# Check for guardrails file (indicates iterative work has been done)
+if [ -f ".claude/guardrails.md" ]; then
+  echo "Note: .claude/guardrails.md exists — review accumulated lessons before stopping."
 fi
 
-# No active work found
 exit 0
