@@ -25,9 +25,10 @@ jobs:
           mkdir -p dist
 
           # Create skill archive (no README per skill-creator guidelines)
-          zip -r "dist/iterative-${{ steps.version.outputs.VERSION }}.skill" \
+          zip -r "dist/iter-${{ steps.version.outputs.VERSION }}.skill" \
             SKILL.md \
             references/ \
+            scripts/ \
             LICENSE \
             -x "*.DS_Store" \
             -x "*/.git/*"
