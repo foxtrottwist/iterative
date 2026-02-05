@@ -1,20 +1,6 @@
 ---
 name: iter
 description: Task orchestration with verification gates and domain-specific decomposition. Auto-detects development (code) or knowledge (research/writing/analysis/planning) mode. Adds confirmation passes, verification agents, and guardrails on top of native Task system. Triggers - /iter, "help me build", "implement", "research", "write a document", "analyze".
-hooks:
-  Stop:
-    - hooks:
-        - type: command
-          command: "./scripts/verify-completion.sh"
-  UserPromptSubmit:
-    - hooks:
-        - type: prompt
-          prompt: |
-            ITERATIVE CHECK: For multi-step work:
-            1. Use EnterPlanMode for discovery/planning
-            2. Decompose using templates in references/
-            3. Execute via Task tool with verification gates
-            4. Check .claude/guardrails.md for lessons
 ---
 
 # Iterative
@@ -162,6 +148,10 @@ Project-level lessons accumulate in `.claude/guardrails.md`. Every subagent read
 ```
 
 Guardrails persist across sessions. Past lessons prevent repeated mistakes.
+
+## Before Stopping
+
+Before ending a session, check if `.claude/guardrails.md` exists. If it does, review accumulated lessons to ensure no patterns were missed.
 
 ## Anti-Patterns
 
