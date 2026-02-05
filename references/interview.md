@@ -176,16 +176,15 @@ options:
 
 - **Max questions**: 4-6 per interview
 - **Timeout**: AskUserQuestion has 60s timeout
-- **Fallback**: If uncertain, note in brief.md for clarification during planning
+- **Fallback**: If uncertain, note in plan file for clarification during planning
 
-## Output: brief.md
+## Output: Plan File
 
-Generate after interview:
+Generate after interview and write to the plan file (specified by plan mode system):
 
 ```markdown
-# {Task Name}
+# Iterative: {Task Name}
 
-**Created:** {timestamp}
 **Mode:** {development|knowledge}
 **Domain:** {feature|bug|refactor|research|writing|analysis|planning}
 
@@ -200,4 +199,7 @@ Generate after interview:
 
 ## Approach / Notes
 {From remaining questions, open questions}
+
+## Tasks / Phases
+{Decomposed work units — see development.md or knowledge.md}
 ```
