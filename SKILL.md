@@ -187,4 +187,5 @@ Guardrails persist across sessions. Past lessons prevent repeated mistakes.
 
 ## Attribution
 
-This skill builds on the Ralph Wiggum Technique (Geoffrey Huntley): reset the context window every iteration instead of growing conversation history. State lives in files. Each fresh agent reads those files to pick up where the last one left off.
+- [Ralph Wiggum Technique](https://ghuntley.com/specs/ralph-wiggum/) (Geoffrey Huntley): reset the context window every iteration instead of growing conversation history. State lives in files. Each fresh agent reads those files to pick up where the last one left off.
+- [Get Shit Done](https://github.com/glittercowboy/get-shit-done) (glittercowboy): checkpoint types (human-verify/decision/human-action), four-level stub detection (exists/substantive/wired/functional), automation-first verification.

@@ -57,6 +57,7 @@ iterative/
 ## Attribution
 
 - [Ralph Wiggum Technique](https://ghuntley.com/specs/ralph-wiggum/) by Geoffrey Huntley
+- [Get Shit Done](https://github.com/glittercowboy/get-shit-done) by glittercowboy — checkpoint types, stub detection levels, automation-first verification
 - Anthropic's documentation on long-running agents and sub-agent coordination
 
 ## License
