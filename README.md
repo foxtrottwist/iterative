@@ -18,7 +18,7 @@ The native Task tool handles fresh-context subagents, state persistence, session
 Clone to your skills directory:
 
 ```bash
-git clone https://github.com/foxtrottwist/iterative.git ~/.claude/skills/iterative
+git clone https://github.com/foxtrottwist/iterative.git ~/.claude/skills/iter
 ```
 
 ## Usage
@@ -43,7 +43,7 @@ PLAN MODE  →  DECOMPOSE  →  TASK DISPATCH  →  VERIFY  →  DELIVER
 ## Structure
 
 ```
-iterative/
+iter/
 ├── SKILL.md              # Orchestration layer (~190 lines)
 ├── scripts/
 │   └── verify-completion.sh
