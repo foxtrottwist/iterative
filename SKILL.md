@@ -1,6 +1,6 @@
 ---
 name: iter
-description: Task orchestration using stateless iteration loops. Auto-detects mode from context - development (code implementation with build/test gates) or knowledge work (research, writing, analysis, planning). Decomposes work into atomic units, runs fresh-context iterations until completion. Use when user needs to implement features, fix bugs, write documents, conduct research, analyze data, or plan projects. Triggers - /iter, "help me build", "implement", "research", "write a document", "analyze".
+description: Task orchestration with verification gates and domain-specific decomposition. Auto-detects development (code) or knowledge (research/writing/analysis/planning) mode. Adds confirmation passes, verification agents, and guardrails on top of native Task system. Triggers - /iter, "help me build", "implement", "research", "write a document", "analyze".
 hooks:
   Stop:
     - hooks:
@@ -10,53 +10,16 @@ hooks:
     - hooks:
         - type: prompt
           prompt: |
-            ITERATIVE WORKFLOW CHECK: Before proceeding, verify workflow state.
-
-            Run: ls .claude/iterative/ 2>/dev/null
-
-            If active state exists (state.json with phase != "complete"):
-            - You are the ORCHESTRATOR, not the worker
-            - Dispatch sub-agents via Task tool to do work
-            - Update progress.md after each iteration
-            - Do NOT edit files directly yourself
-
-            If no state exists:
-            - Use EnterPlanMode to discover requirements and plan tasks
-            - Create state files BEFORE any implementation work
+            ITERATIVE CHECK: For multi-step work:
+            1. Use EnterPlanMode for discovery/planning
+            2. Decompose using templates in references/
+            3. Execute via Task tool with verification gates
+            4. Check .claude/guardrails.md for lessons
 ---
 
 # Iterative
 
-Task orchestration using fresh-context iteration loops. Work decomposes into atomic units. Each unit runs as multiple stateless passes—context resets every iteration, state persists in files.
-
-## MANDATORY: Follow This Workflow
-
-**DO NOT skip to default Claude Code behavior.** When `/iter` is invoked or iterative work is triggered:
-
-1. **ALWAYS check for existing state first** (`ls .claude/iterative/`)
-2. **ALWAYS create state files before doing any work** - brief.md, tasks.md, state.json, progress.md, guardrails.md, context.md
-3. **ALWAYS use EnterPlanMode for new work** - discover requirements, plan tasks, get approval
-4. **ALWAYS dispatch work through sub-agents** - do not do the work directly in the orchestrator context
-5. **ALWAYS update progress.md after each iteration** - this is the memory that bridges context windows
-
-**What NOT to do:**
-- ❌ Skip straight to editing files without state setup
-- ❌ Use built-in TaskCreate/TaskList instead of iterative state files
-- ❌ Do the work yourself instead of dispatching sub-agents
-- ❌ Forget to update progress.md (next iteration will have no memory)
-- ❌ Treat this like a checklist - it's an execution framework
-
-**The state files ARE the work product** until execution is complete. If `.claude/iterative/{slug}/` doesn't exist, you haven't started yet.
-
-## Core Pattern
-
-```
-Fresh context EVERY iteration.
-State persists in files + git.
-Progress file = notes to your next iteration.
-```
-
-This builds on the Ralph Wiggum Technique (Geoffrey Huntley): instead of growing conversation history until context degrades, reset the context window every iteration. State lives in files. Each fresh agent reads those files to pick up where the last one left off.
+Task orchestration layered on Claude Code's native Task system. This skill adds verification gates, domain-specific decomposition templates, and guardrails accumulation. The native Task tool handles fresh-context subagents, state persistence, and session resumption.
 
 ## Mode Detection
 
@@ -68,384 +31,160 @@ Auto-detect from request context:
 | "research", "write", "analyze", "plan", "document", "synthesize" | knowledge |
 | Ambiguous | Ask user via AskUserQuestion |
 
-**If ambiguous**, use AskUserQuestion:
-
-```yaml
-question: "What type of work is this?"
-options:
-  - "Development (coding, implementation)"
-  - "Knowledge work (research, writing, analysis, planning)"
-```
-
 ## Workflow
 
 ```
-RESUME?  →  PLAN MODE  →  CONTEXT CLEAR  →  EXECUTE  →  VERIFY  →  DELIVER
-(check      (discover,    (built-in)       (iterate)   (review)  (package)
- state)      plan)
+PLAN MODE  →  DECOMPOSE  →  TASK DISPATCH  →  VERIFY  →  DELIVER
+(discover,    (templates)   (native Task)    (gates)   (summary)
+ plan)
 ```
 
-## Phase 0: Resume Check (REQUIRED FIRST STEP)
+### 1. Plan Mode (Discover + Plan)
 
-**MUST run before anything else.** Check for existing work:
+Use `EnterPlanMode` to gather requirements and decompose work.
 
-```bash
-ls .claude/iterative/ 2>/dev/null
+**Discovery**: Use AskUserQuestion to gather requirements. See [references/interview.md](references/interview.md) for mode-specific templates.
+
+**Decompose**: Break into atomic units using mode-specific templates:
+- **Development**: Tasks (T1, T2, ...) with files, criteria, model selection. See [references/development.md](references/development.md).
+- **Knowledge**: Phases using domain templates (R1-R4, D1-D4, A1-A4, P1-P4). See [references/knowledge.md](references/knowledge.md).
+
+Write the plan file with task/phase breakdown, then `ExitPlanMode` for approval.
+
+### 2. Task Dispatch
+
+After plan approval, dispatch each unit via the native Task tool.
+
+**Development tasks:**
+```
+Task tool call:
+- subagent_type: "general-purpose"
+- model: {from task spec — haiku|sonnet|opus}
+- max_turns: {from task spec}
+- prompt: |
+    Task: T{N} "{title}"
+    Files: {paths}
+    Criteria: {acceptance criteria}
+
+    Read .claude/guardrails.md for accumulated lessons before starting.
+
+    Work toward the criteria. Commit progress.
+    If ALL criteria met, state "DONE" with summary.
+    If blocked, state "BLOCKED" with reason.
 ```
 
-**If state exists**, read `state.json` and present to user:
+**Knowledge phases:**
 ```
-Found "{task}" at {phase}:
-- Completed: {list}
-- Current: {id} (iteration {N} of max {M})
-- Remaining: {list}
+Task tool call:
+- subagent_type: "general-purpose"
+- model: sonnet
+- max_turns: {from phase spec}
+- prompt: |
+    Phase: {ID} "{title}"
+    Criteria: {acceptance criteria}
+    Output: {output_path}
 
-Resume, start fresh, or check status?
-```
+    Read .claude/guardrails.md for accumulated lessons before starting.
 
-**If no state**, you MUST use `EnterPlanMode` to begin discovery and planning. Do NOT proceed to implementation without going through plan mode first.
-
-## Phases 1-2: Plan Mode (Discover + Plan)
-
-After entering plan mode, Claude has read-only access for exploration. This phase combines discovery and planning.
-
-### Discovery
-
-Use **AskUserQuestion** to gather requirements:
-1. What outcome do you need?
-2. What does "done" look like?
-3. Any constraints?
-
-See [references/interview.md](references/interview.md) for mode-specific templates.
-
-### Planning
-
-Decompose into atomic units based on detected mode.
-
-### Development Mode
-
-Decompose into **tasks** (T1, T2, ...). Each task runs as its own iteration loop.
-
-**Task format:**
-```markdown
-- [ ] **T1**: {title}
-  - Files: `{paths}`
-  - Criteria: {measurable acceptance}
-  - Completion: `<signal>T1_DONE</signal>`
-  - Max iterations: {3-15}
-  - Depends: {none|T1|T1,T2}
-  - Model: {haiku|sonnet|opus}
+    Work toward the criteria. Save output to the specified path.
+    If ALL criteria met, state "DONE" with summary.
+    If blocked, state "BLOCKED" with reason.
 ```
 
 **Model selection:**
-| Task Type | Model | Why |
-|-----------|-------|-----|
-| File operations, grep, simple edits | haiku | Mechanical work |
-| Standard implementation | sonnet | Balanced capability |
-| Code review, test generation | sonnet | Structured output |
+
+| Task Type | Model | Rationale |
+|-----------|-------|-----------|
+| File operations, simple edits | haiku | Mechanical work |
+| Standard implementation, code review | sonnet | Balanced capability |
 | Complex debugging, architecture | opus | Deep reasoning |
 
-See [references/development.md](references/development.md) for full task format.
+**Default**: sonnet
 
-### Knowledge Mode
+### 3. Verification Gates
 
-Decompose into **phases** using domain templates:
+After a unit declares DONE, run verification layers. See [references/verification.md](references/verification.md) for the full hierarchy.
 
-| Domain | Phases | Use When |
-|--------|--------|----------|
-| Research | R1→R2→R3→R4 | Synthesizing sources, literature review |
-| Writing | D1→D2→D3→D4 | Documents, reports, articles |
-| Analysis | A1→A2→A3→A4 | Data interpretation, recommendations |
-| Planning | P1→P2→P3→P4 | Decisions, strategy, project planning |
-
-**Phase format:**
-```markdown
-- [ ] **R1**: {title}
-  - Criteria: {measurable acceptance}
-  - Output: `{file_path}`
-  - Max iterations: {3-8}
+**Programmatic checks** (development only):
+```bash
+# Build, lint, test — must all pass before proceeding
 ```
 
-See [references/knowledge.md](references/knowledge.md) for domain templates.
-
-### Plan File Output
-
-Write to the designated plan file (specified by plan mode system). Include a **continuation header** so the fresh context knows how to proceed:
-
-```markdown
-# Iterative: {task-name}
-
-## Continue
-Phase: execute
-State: .claude/iterative/{slug}/
-Mode: {development|knowledge}
-Current: {first-task-id}
-
-After context clear, you are the EXECUTE orchestrator.
-Read state files, dispatch subagents for each task.
-
----
-
-## Brief
-{requirements from discovery}
-
-## Tasks
-- [ ] **T1**: {title}
-  - Files: `{paths}`
-  - Criteria: {acceptance}
-  - Max iterations: {N}
-  - Model: {haiku|sonnet|opus}
-
-- [ ] **T2**: ...
-```
-
-Use `ExitPlanMode` to present plan for approval. Claude Code's built-in prompt will offer to clear context before execution.
-
-### After Context Clear
-
-The fresh context reads the plan file and MUST:
-1. **Create** `.claude/iterative/{slug}/` directory
-2. **Write** all state files (`brief.md`, `tasks.md`, `state.json`, `progress.md`, `guardrails.md`, `context.md`)
-3. **Verify** state files exist before proceeding
-4. Become the orchestrator for the execute phase
-5. Dispatch subagents with clean context
-
-**STOP if state files don't exist.** The iteration loop cannot function without persistent state.
-
-## Phase 3: Execute (Iteration Loop)
-
-**IMPORTANT:** The orchestrator MUST NOT do the work itself. It dispatches sub-agents.
-
-**The orchestrator starts with fresh context.** It reads the plan file, hydrates state files, then dispatches subagents. No accumulated discovery/planning baggage—just clean orchestration.
-
-**Before each iteration:**
-1. Verify `.claude/iterative/{slug}/` exists with all required files
-2. Read `state.json` to get current task/phase and iteration count
-3. Read `progress.md` to understand what's been done
-4. Dispatch a fresh sub-agent with the iteration prompt (do NOT do the work yourself)
-
-Each task/phase runs as its own loop of fresh-context iterations, then passes through verification gates.
+**Confirmation pass (N+1)** — dispatch a fresh Task with the same prompt as the original work pass. The agent doesn't know it's a confirmation. If work is truly complete, it finds nothing to do. If gaps exist, it fills them.
 
 ```
-┌─────────────────────────────────────────────────┐
-│  TASK/PHASE LOOP                                │
-│                                                 │
-│  Iteration 1: Fresh agent → reads state → works │
-│       ↓                                         │
-│  Iteration N: Agent declares DONE               │
-│       ↓                                         │
-│  Programmatic checks (dev: build, lint, tests)  │
-│       ↓                                         │
-│  Confirmation pass (N+1): Fresh agent, same task│
-│       ↓                                         │
-│  Verification agent: Quality/code review        │
-│       ↓                                         │
-│  Task/phase complete                            │
-└─────────────────────────────────────────────────┘
+Task tool call:
+- subagent_type: "general-purpose"
+- model: {same as work pass}
+- max_turns: 3
+- prompt: {same prompt as original dispatch}
 ```
 
-See [references/verification.md](references/verification.md) for the complete verification hierarchy, including:
-- **Checkpoint types**: Categorize pauses as human-verify, decision, or human-action
-- **Stub detection**: Four-level verification (Exists → Substantive → Wired → Functional)
-- **Saturation detection**: Catch thrashing iterations with >80% similarity
-
-### Dispatch Fresh Sub-Agent (Each Iteration)
-
-**Critical**: Each iteration spawns a completely fresh sub-agent. No memory of previous iterations except what's in files.
+**Verification agent** — dispatch a review-focused Task with adversarial mindset:
 
 ```
-Iteration {I} of {MAX} for {ID}: "{title}"
+Task tool call:
+- subagent_type: "general-purpose"
+- model: sonnet
+- prompt: |
+    Review T{N} "{title}" with adversarial mindset.
+    Files: {paths}
+    Criteria: {acceptance criteria}
 
-Read these files first (your only memory):
-- .claude/iterative/{slug}/progress.md
-- .claude/iterative/{slug}/guardrails.md
-- .claude/iterative/{slug}/context.md
+    Check for:
+    - Incomplete work, stubs, TODOs
+    - Edge cases and error handling
+    - Quality gaps
+    - (Dev) Build/test integrity
+    - (Knowledge) Depth, accuracy, completeness
 
-Task/Phase: {title}
-Files/Output: {paths}
-Criteria: {acceptance}
-
-Your job this iteration:
-1. Read progress.md to see what previous iterations accomplished
-2. Continue from where they left off
-3. Work toward the criteria
-4. Save your work (dev: commit, knowledge: save output)
-5. Update progress.md with what you did and what remains
-6. If criteria fully met: <signal>{ID}_DONE</signal>
-7. If blocked: <signal>BLOCKED:{reason}</signal>
-
-If not done and not blocked, just exit. Next iteration will continue.
+    Output: VERIFIED or GAPS_FOUND with specific issues.
 ```
-
-See [references/prompts.md](references/prompts.md) for all iteration prompt templates.
-
-### Progress File is Critical
-
-The progress file bridges context windows. Each iteration appends:
-
-```markdown
-## {ID} - Iteration {I} - {timestamp}
-**Did:** {what accomplished}
-**Remaining:** {what's left, or "None"}
-**Blockers:** {issues, or "None"}
-**Commit/Output:** {reference}
-
-[If complete: **Signal:** {ID}_DONE]
-```
-
-### Fresh Context Discipline
-
-**Include** in sub-agent prompt:
-- Task/phase ID, title, criteria
-- Current iteration number and max
-- File paths to read (progress, guardrails, context)
-- File paths to modify/output
-
-**Exclude** from sub-agent prompt:
-- Full brief/PRD content
-- Other task/phase details
-- Previous iteration outputs
-- Conversation history
-
-**Let agents read files.** Don't paste content into prompts.
-
-### Completion Gates
-
-When an agent declares DONE, the work passes through verification gates:
-
-1. **Programmatic checks** (dev mode) — Build and lint must pass
-2. **Test gate** (dev mode) — Generate tests, run all tests
-3. **Confirmation pass (N+1)** — Fresh agent receives same prompt, attempts to complete. If truly done, finds nothing to do.
-4. **Verification agent** — Quality/code review with adversarial mindset
 
 Only after all gates pass is the unit marked complete.
 
-## Phase 4: Verify (Task Review)
+### 4. Deliver
 
-Review completed work against original brief. Runs as iteration loop until PASS.
-
-```
-Review iteration {I} for "{task}".
-
-Read:
-- .claude/iterative/{slug}/brief.md (requirements)
-- .claude/iterative/{slug}/{tasks|plan}.md (criteria per unit)
-- .claude/iterative/{slug}/progress.md (what was done)
-
-Verify each completed unit:
-1. Acceptance criteria explicitly met
-2. Outputs exist and are complete
-3. Quality standards satisfied
-4. (Dev) Build passes, tests pass
-
-If ALL checks pass: <signal>REVIEW_PASS</signal>
-If issues found: <signal>REVIEW_FAIL</signal> with issue list
-```
-
-**On REVIEW_FAIL:**
-- Dispatch fix/revise loop per issue
-- Re-run review
-- Repeat until PASS or max review cycles
-
-## Phase 5: Deliver
-
-1. Compile final outputs
-2. Present summary:
-   ```
-   Task: {name}
-   Mode: {development|knowledge}
-   Units: {N} completed
-   Total iterations: {sum}
-   Outputs/Files: {list}
-   ```
-3. Archive state to `.claude/iterative/archive/{slug}/`
-4. Update `state.json`: `{ "phase": "complete" }`
-
-## State Files
-
-All state lives in `.claude/iterative/{task-slug}/`:
-
-```
-.claude/iterative/
-├── {task-slug}/
-│   ├── state.json      # Phase, current unit, iteration count
-│   ├── brief.md        # Requirements from discovery
-│   ├── tasks.md        # (Dev) Task breakdown
-│   ├── plan.md         # (Knowledge) Phase breakdown
-│   ├── context.md      # Brief summary for sub-agents
-│   ├── progress.md     # Iteration log (critical)
-│   ├── guardrails.md   # Accumulated lessons
-│   ├── sources/        # (Knowledge) Research inputs
-│   └── outputs/        # (Knowledge) Deliverables
-└── archive/            # Completed work
-```
-
-See [references/state.md](references/state.md) for full schemas, including:
-- **Performance metrics**: Track iteration velocity and trend (improving/stable/degrading)
-- **Delta tracking**: Progress.md field for saturation detection
+After all units complete and pass verification:
+1. Run task review (cross-unit integration check)
+2. Present summary with outputs/files list
+3. Clean up any temporary state
 
 ## Guardrails
 
-Sub-agents read `guardrails.md` before starting and append when they hit problems:
+Project-level lessons accumulate in `.claude/guardrails.md`. Every subagent reads this file before starting and appends when problems are discovered.
 
 ```markdown
 ## {Pattern Name}
 - **When**: {context when this applies}
 - **Do**: {what to do instead}
-- **Learned**: {ID} iteration {N} - {brief reason}
+- **Learned**: {task/phase} - {brief reason}
 ```
 
-Guardrails accumulate across iterations and tasks. Every fresh agent benefits from past lessons.
-
-## Resuming
-
-**After interruption** (network, timeout, new session):
-
-1. Check for existing state in `.claude/iterative/`
-2. Read `state.json` for phase, current unit, iteration
-3. Read `progress.md` for what happened
-4. Resume at exact iteration point
-
-**After context clear** (new chat continuing from plan):
-
-1. Read plan file (contains continuation header)
-2. Hydrate state files from plan content
-3. Begin orchestration from specified phase/task
-
-```
-Found "{task}" in execute phase:
-- Unit: T3 "Create auth service"
-- Iteration: 2 of 10
-- Last progress: "Added login method, working on token refresh"
-
-Resume from iteration 3?
-```
-
-**Commands:**
-- `/iter resume` — Continue from exact point
-- `/iter status` — Check progress
-- `/iter skip-to {phase}` — Jump to phase
+Guardrails persist across sessions. Past lessons prevent repeated mistakes.
 
 ## Anti-Patterns
 
-- **Carrying context**: Passing previous iteration output into next prompt
-- **Giant units**: Let iterations handle complexity, but scope reasonably
-- **Skipping progress updates**: Next iteration has no idea what happened
-- **Ignoring guardrails**: Repeat past mistakes across iterations
-- **Too few iterations**: Complex work needs room to converge
-- **Too many iterations**: Thrashing without progress wastes resources
+- **Skipping verification**: Always run confirmation pass + verification agent
+- **Giant units**: Scope tasks/phases to be completable in a few turns
+- **Ignoring guardrails**: Read `.claude/guardrails.md` before every dispatch
+- **Wrong model**: Use the model selection table, don't default everything to opus
 
-## Quick Reference
+## Reference Files
+
+| File | When to Read |
+|------|-------------|
+| [interview.md](references/interview.md) | During discovery — question templates |
+| [development.md](references/development.md) | Dev mode — task format, gates, model selection |
+| [knowledge.md](references/knowledge.md) | Knowledge mode — phase templates (R/D/A/P) |
+| [verification.md](references/verification.md) | After DONE — verification hierarchy, stub detection |
+
+## Commands
 
 | Command | Action |
 |---------|--------|
 | `/iter {description}` | Start new task (auto-detect mode) |
-| `/iter resume` | Continue from exact point |
-| `/iter status` | Check progress with iteration counts |
-| `/iter skip-to {phase}` | Jump to phase |
 
 ## Attribution
 
-This skill builds on the Ralph Wiggum Technique (Geoffrey Huntley): a loop that repeatedly invokes an agent with a prompt file, allowing iterative refinement until completion. Instead of growing conversation history until context degrades, reset the context window every iteration. State lives in files. Each fresh agent reads those files to pick up where the last one left off.
-
-Anthropic's documentation on long-running agents and sub-agent coordination informed the dispatch mechanics.
+This skill builds on the Ralph Wiggum Technique (Geoffrey Huntley): reset the context window every iteration instead of growing conversation history. State lives in files. Each fresh agent reads those files to pick up where the last one left off.
