@@ -9,13 +9,12 @@ Task orchestration layered on Claude Code's native Task system. This skill adds 
 
 ## Mode Detection
 
-Auto-detect from request context:
+Infer mode from request context. Only ask via AskUserQuestion when genuinely ambiguous after examining available signals.
 
 | Signal | Mode |
 |--------|------|
 | "implement", "build", "fix bug", "add feature", "refactor", code file references | development |
 | "research", "write", "analyze", "plan", "document", "synthesize" | knowledge |
-| Ambiguous | Ask user via AskUserQuestion |
 
 ## Workflow
 
@@ -25,17 +24,15 @@ PLAN MODE  →  DECOMPOSE  →  TASK DISPATCH  →  VERIFY  →  DELIVER
  plan)
 ```
 
-### 1. Plan Mode (Discover + Plan)
+### 1. Plan Mode (Required)
 
-Use `EnterPlanMode` to gather requirements and decompose work.
+Plan mode is required. Enter plan mode immediately when this skill is invoked — discovery interviews and task decomposition must occur within plan mode before any work is dispatched.
 
-**Discovery**: Use AskUserQuestion to gather requirements. See [references/interview.md](references/interview.md) for mode-specific templates.
+**Discovery**: Use AskUserQuestion with mode-specific templates from [references/interview.md](references/interview.md).
 
 **Decompose**: Break into atomic units using mode-specific templates:
 - **Development**: Tasks (T1, T2, ...) with files, criteria, model selection. See [references/development.md](references/development.md).
 - **Knowledge**: Phases using domain templates (R1-R4, D1-D4, A1-A4, P1-P4). See [references/knowledge.md](references/knowledge.md).
-
-Write the plan file with task/phase breakdown, then `ExitPlanMode` for approval.
 
 ### 2. Task Dispatch
 
@@ -77,7 +74,7 @@ Task tool call:
     If blocked, state "BLOCKED" with reason.
 ```
 
-**Model selection:**
+**Model selection** (advisory — native routing handles the common case; use explicit overrides for cost optimization):
 
 | Task Type | Model | Rationale |
 |-----------|-------|-----------|
@@ -177,5 +174,5 @@ Before ending a session, check if `.claude/guardrails.md` exists. If it does, re
 
 ## Attribution
 
-- [Ralph Wiggum Technique](https://ghuntley.com/specs/ralph-wiggum/) (Geoffrey Huntley): reset the context window every iteration instead of growing conversation history. State lives in files. Each fresh agent reads those files to pick up where the last one left off.
-- [Get Shit Done](https://github.com/glittercowboy/get-shit-done) (glittercowboy): checkpoint types (human-verify/decision/human-action), four-level stub detection (exists/substantive/wired/functional), automation-first verification.
+- [Ralph Wiggum Technique](https://ghuntley.com/specs/ralph-wiggum/) (Geoffrey Huntley): fresh-context iteration pattern. Now native to Claude Code's Task system.
+- [Get Shit Done](https://github.com/glittercowboy/get-shit-done) (glittercowboy): checkpoint types, four-level stub detection, automation-first verification.

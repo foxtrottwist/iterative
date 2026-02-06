@@ -1,6 +1,6 @@
 # Interview Questions
 
-Discovery questions for Phase 1. Use the **AskUserQuestion** built-in tool.
+Discovery questions for plan mode. Use **AskUserQuestion** during discovery interviews when user input is needed to finalize scope or resolve ambiguity.
 
 ## Tool Usage
 

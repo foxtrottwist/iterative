@@ -34,16 +34,9 @@ T4 (independent)
   - Max turns: 8
 ```
 
-## Task Tool Parameter Mapping
+## Model Selection (Advisory)
 
-| Task Field | Task Tool Param | Notes |
-|------------|-----------------|-------|
-| Model | `model` | haiku, sonnet, or opus |
-| Max turns | `max_turns` | Safety limit for subagent |
-| Depends | Dispatch order | Sequential or parallel dispatch |
-| Files + Criteria | `prompt` | Included in the prompt text |
-
-## Model Selection
+Native model routing handles the common case. Use explicit overrides for cost optimization or when task complexity warrants it.
 
 | Task Type | Model | Rationale |
 |-----------|-------|-----------|
@@ -56,7 +49,7 @@ T4 (independent)
 | Architecture decisions | opus | Multi-factor reasoning |
 | Refactors touching many files | opus | Coordination complexity |
 
-**Default**: sonnet (best balance of capability and cost)
+**Default**: sonnet
 
 ## Programmatic Gates
 
